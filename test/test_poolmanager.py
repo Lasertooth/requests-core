@@ -2,14 +2,14 @@ import socket
 
 import pytest
 
-from urllib3.poolmanager import PoolManager
-from urllib3._sync.poolmanager import key_fn_by_scheme, PoolKey
-from urllib3 import connection_from_url
-from urllib3.exceptions import (
+from requests_core.http_manager.poolmanager import PoolManager
+from requests_core.http_manager._sync.poolmanager import key_fn_by_scheme, PoolKey
+from requests_core.http_manager import connection_from_url
+from requests_core.http_manager.exceptions import (
     ClosedPoolError,
     LocationValueError,
 )
-from urllib3.util import retry, timeout, ssl_
+from requests_core.http_manager.util import retry, timeout, ssl_
 
 from dummyserver.server import (DEFAULT_CA, DEFAULT_CERTS, DEFAULT_CA_DIR)
 

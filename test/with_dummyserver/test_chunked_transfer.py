@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from urllib3 import HTTPConnectionPool
-from urllib3.exceptions import InvalidBodyError
-from urllib3.packages import six
+from requests_core.http_manager import HTTPConnectionPool
+from requests_core.http_manager.exceptions import InvalidBodyError
+from requests_core.http_manager.packages import six
 from dummyserver.testcase import SocketDummyServerTestCase
 
 import pytest

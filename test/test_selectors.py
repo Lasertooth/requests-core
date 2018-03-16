@@ -26,7 +26,7 @@ try:  # Windows doesn't support socketpair on Python 3.5<
 except ImportError:
     from .socketpair_helper import socketpair
 
-from urllib3.util import (
+from requests_core.http_manager.util import (
     selectors,
     wait
 )

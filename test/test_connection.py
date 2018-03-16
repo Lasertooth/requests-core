@@ -3,8 +3,8 @@ import mock
 
 import pytest
 
-from urllib3._sync.connection import RECENT_DATE
-from urllib3.util.ssl_ import CertificateError, match_hostname
+from requests_core.http_manager._sync.connection import RECENT_DATE
+from requests_core.http_manager.util.ssl_ import CertificateError, match_hostname
 
 class TestConnection(object):
     """

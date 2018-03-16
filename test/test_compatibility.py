@@ -2,9 +2,9 @@ import warnings
 
 import pytest
 
-from urllib3.connection import HTTPConnection
-from urllib3.response import HTTPResponse
-from urllib3.packages.six.moves import http_cookiejar, urllib
+from requests_core.http_manager.connection import HTTPConnection
+from requests_core.http_manager.response import HTTPResponse
+from requests_core.http_manager.packages.six.moves import http_cookiejar, urllib
 
 
 class TestVersionCompatibility(object):

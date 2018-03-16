@@ -3,10 +3,10 @@ from io import BytesIO, BufferedReader
 import pytest
 import mock
 
-from urllib3.base import Response
-from urllib3.response import HTTPResponse
-from urllib3.exceptions import DecodeError
-from urllib3.util.retry import Retry
+from requests_core.http_manager.base import Response
+from requests_core.http_manager.response import HTTPResponse
+from requests_core.http_manager.exceptions import DecodeError
+from requests_core.http_manager.util.retry import Retry
 
 from base64 import b64decode
 

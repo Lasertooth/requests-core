@@ -1,7 +1,7 @@
 import pytest
 
-from urllib3.fields import guess_content_type, RequestField
-from urllib3.packages.six import u
+from requests_core.http_manager.fields import guess_content_type, RequestField
+from requests_core.http_manager.packages.six import u
 from . import onlyPy2
 
 

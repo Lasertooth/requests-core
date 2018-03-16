@@ -9,11 +9,11 @@ from .. import (
     TARPIT_HOST, VALID_SOURCE_ADDRESSES, INVALID_SOURCE_ADDRESSES,
 )
 from ..port_helpers import find_unused_port
-from urllib3 import (
+from requests_core.http_manager import (
     encode_multipart_formdata,
     HTTPConnectionPool,
 )
-from urllib3.exceptions import (
+from requests_core.http_manager.exceptions import (
     ConnectTimeoutError,
     EmptyPoolError,
     DecodeError,
@@ -21,10 +21,10 @@ from urllib3.exceptions import (
     ReadTimeoutError,
     NewConnectionError,
 )
-from urllib3.packages.six import b, u
-from urllib3.packages.six.moves.urllib.parse import urlencode
-from urllib3.util.retry import Retry
-from urllib3.util.timeout import Timeout
+from requests_core.http_manager.packages.six import b, u
+from requests_core.http_manager.packages.six.moves.urllib.parse import urlencode
+from requests_core.http_manager.util.retry import Retry
+from requests_core.http_manager.util.timeout import Timeout
 
 from dummyserver.testcase import HTTPDummyServerTestCase, SocketDummyServerTestCase
 from dummyserver.server import NoIPv6Warning, HAS_IPV6_AND_DNS

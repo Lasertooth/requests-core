@@ -9,23 +9,23 @@ from itertools import chain
 from mock import patch, Mock
 import pytest
 
-from urllib3 import add_stderr_logger, disable_warnings
-from urllib3.util.request import make_headers, rewind_body, _FAILEDTELL
-from urllib3.util.retry import Retry
-from urllib3.util.timeout import Timeout
-from urllib3.util.url import (
+from requests_core.http_manager import add_stderr_logger, disable_warnings
+from requests_core.http_manager.util.request import make_headers, rewind_body, _FAILEDTELL
+from requests_core.http_manager.util.retry import Retry
+from requests_core.http_manager.util.timeout import Timeout
+from requests_core.http_manager.util.url import (
     get_host,
     parse_url,
     split_first,
     Url,
 )
-from urllib3.util.ssl_ import (
+from requests_core.http_manager.util.ssl_ import (
     resolve_cert_reqs,
     resolve_ssl_version,
     ssl_wrap_socket,
     _const_compare_digest_backport,
 )
-from urllib3.exceptions import (
+from requests_core.http_manager.exceptions import (
     LocationParseError,
     TimeoutStateError,
     InsecureRequestWarning,
@@ -33,12 +33,12 @@ from urllib3.exceptions import (
     InvalidHeader,
     UnrewindableBodyError,
 )
-from urllib3.util.connection import (
+from requests_core.http_manager.util.connection import (
     allowed_gai_family,
     _has_ipv6
 )
-from urllib3.util import is_fp_closed, ssl_
-from urllib3.packages import six
+from requests_core.http_manager.util import is_fp_closed, ssl_
+from requests_core.http_manager.packages import six
 
 from . import clear_warnings
 

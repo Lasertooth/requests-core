@@ -1,10 +1,10 @@
 import dummyserver.testcase
 import pytest
 
-from urllib3.contrib import appengine
-import urllib3.exceptions
-import urllib3.util.url
-import urllib3.util.retry
+from requests_core.http_manager.contrib import appengine
+import requests_core.http_manager.exceptions
+import requests_core.http_manager.util.url
+import requests_core.http_manager.util.retry
 
 from test.with_dummyserver import test_connectionpool
 

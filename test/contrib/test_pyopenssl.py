@@ -4,7 +4,7 @@ import unittest
 import pytest
 
 try:
-    from urllib3.contrib.pyopenssl import (inject_into_urllib3,
+    from requests_core.http_manager.contrib.pyopenssl import (inject_into_urllib3,
                                            extract_from_urllib3,
                                            _dnsname_to_stdlib)
 except ImportError as e:

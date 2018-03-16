@@ -8,12 +8,12 @@ import pytest
 from dummyserver.server import HAS_IPV6
 from dummyserver.testcase import (HTTPDummyServerTestCase,
                                   IPv6HTTPDummyServerTestCase)
-from urllib3.base import DEFAULT_PORTS
-from urllib3.poolmanager import PoolManager
-from urllib3.exceptions import (
+from requests_core.http_manager.base import DEFAULT_PORTS
+from requests_core.http_manager.poolmanager import PoolManager
+from requests_core.http_manager.exceptions import (
     MaxRetryError, NewConnectionError, UnrewindableBodyError
 )
-from urllib3.util.retry import Retry, RequestHistory
+from requests_core.http_manager.util.retry import Retry, RequestHistory
 
 
 class TestPoolManager(HTTPDummyServerTestCase):

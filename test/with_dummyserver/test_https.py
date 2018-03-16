@@ -26,9 +26,9 @@ from test import (
     requires_network,
     TARPIT_HOST,
 )
-from urllib3 import HTTPSConnectionPool
-from urllib3._sync.connection import RECENT_DATE
-from urllib3.exceptions import (
+from requests_core.http_manager import HTTPSConnectionPool
+from requests_core.http_manager._sync.connection import RECENT_DATE
+from requests_core.http_manager.exceptions import (
     SSLError,
     ConnectTimeoutError,
     InsecureRequestWarning,
@@ -36,9 +36,9 @@ from urllib3.exceptions import (
     InsecurePlatformWarning,
     MaxRetryError,
 )
-from urllib3.packages import six
-from urllib3.util.timeout import Timeout
-import urllib3.util as util
+from requests_core.http_manager.packages import six
+from requests_core.http_manager.util.timeout import Timeout
+import requests_core.http_manager.util as util
 
 
 ResourceWarning = getattr(

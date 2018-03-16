@@ -1,8 +1,8 @@
 import threading
 import socket
 
-from urllib3.contrib import socks
-from urllib3.exceptions import ConnectTimeoutError, NewConnectionError
+from requests_core.http_manager.contrib import socks
+from requests_core.http_manager.exceptions import ConnectTimeoutError, NewConnectionError
 
 from dummyserver.server import DEFAULT_CERTS
 from dummyserver.testcase import IPV4SocketDummyServerTestCase
@@ -11,7 +11,7 @@ import pytest
 
 try:
     import ssl
-    from urllib3.util import ssl_ as better_ssl
+    from requests_core.http_manager.util import ssl_ as better_ssl
     HAS_SSL = True
 except ImportError:
     ssl = None

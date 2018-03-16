@@ -2,7 +2,7 @@
 import pytest
 
 try:
-    from urllib3.contrib.securetransport import (inject_into_urllib3,
+    from requests_core.http_manager.contrib.securetransport import (inject_into_urllib3,
                                                  extract_from_urllib3)
 except ImportError as e:
     pytestmark = pytest.mark.skip('Could not import SecureTransport: %r' % e)

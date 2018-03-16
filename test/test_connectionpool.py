@@ -2,18 +2,18 @@ from __future__ import absolute_import
 
 import pytest
 
-from urllib3.base import Response
-from urllib3.connectionpool import (
+from requests_core.http_manager.base import Response
+from requests_core.http_manager.connectionpool import (
     connection_from_url,
     HTTPConnectionPool,
     HTTPSConnectionPool,
 )
-from urllib3._sync.connection import HTTP1Connection
-from urllib3.response import HTTPResponse
-from urllib3.util.timeout import Timeout
-from urllib3.packages.six.moves.queue import Empty
-from urllib3.packages.ssl_match_hostname import CertificateError
-from urllib3.exceptions import (
+from requests_core.http_manager._sync.connection import HTTP1Connection
+from requests_core.http_manager.response import HTTPResponse
+from requests_core.http_manager.util.timeout import Timeout
+from requests_core.http_manager.packages.six.moves.queue import Empty
+from requests_core.http_manager.packages.ssl_match_hostname import CertificateError
+from requests_core.http_manager.exceptions import (
     ClosedPoolError,
     EmptyPoolError,
     LocationValueError,
