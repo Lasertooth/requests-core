@@ -8,3 +8,5 @@
 /requestscore.egg-info/
 
 /test-venv-py36/
+
+/.pytest_cache/
