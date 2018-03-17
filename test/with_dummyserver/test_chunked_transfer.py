@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from requests_core.http_manager import HTTPConnectionPool
-from requests_core.http_manager.exceptions import InvalidBodyError
-from requests_core.http_manager.packages import six
+from requests_core._http import HTTPConnectionPool
+from requests_core._http.exceptions import InvalidBodyError
+from requests_core._http.packages import six
 from dummyserver.testcase import SocketDummyServerTestCase
 
 import pytest

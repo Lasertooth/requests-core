@@ -16,9 +16,9 @@ import unittest
 import h11
 import pytest
 
-from requests_core.http_manager.base import Request
-from requests_core.http_manager._sync.connection import HTTP1Connection
-from requests_core.http_manager.util import selectors
+from requests_core._http.base import Request
+from requests_core._http._sync.connection import HTTP1Connection
+from requests_core._http.util import selectors
 
 
 # Objects and globals for handling scenarios.

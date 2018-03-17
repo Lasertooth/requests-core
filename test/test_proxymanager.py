@@ -1,6 +1,6 @@
 import pytest
 
-from requests_core.http_manager.poolmanager import ProxyManager
+from requests_core._http.poolmanager import ProxyManager
 
 
 class TestProxyManager(object):

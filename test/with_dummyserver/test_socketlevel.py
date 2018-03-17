@@ -1,9 +1,9 @@
 # TODO: Break this module up into pieces. Maybe group by functionality tested
 # rather than the socket level-ness of it.
 
-from requests_core.http_manager import HTTPConnectionPool, HTTPSConnectionPool
-from requests_core.http_manager.poolmanager import proxy_from_url
-from requests_core.http_manager.exceptions import (
+from requests_core._http import HTTPConnectionPool, HTTPSConnectionPool
+from requests_core._http.poolmanager import proxy_from_url
+from requests_core._http.exceptions import (
         MaxRetryError,
         ProxyError,
         ReadTimeoutError,
@@ -12,10 +12,10 @@ from requests_core.http_manager.exceptions import (
         BadVersionError,
         FailedTunnelError,
 )
-from requests_core.http_manager.util.ssl_ import HAS_SNI
-from requests_core.http_manager.util.timeout import Timeout
-from requests_core.http_manager.util.retry import Retry
-from requests_core.http_manager._collections import HTTPHeaderDict, OrderedDict
+from requests_core._http.util.ssl_ import HAS_SNI
+from requests_core._http.util.timeout import Timeout
+from requests_core._http.util.retry import Retry
+from requests_core._http._collections import HTTPHeaderDict, OrderedDict
 
 from dummyserver.testcase import SocketDummyServerTestCase, consume_socket
 from dummyserver.server import (

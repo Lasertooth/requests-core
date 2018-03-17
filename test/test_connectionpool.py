@@ -2,18 +2,18 @@ from __future__ import absolute_import
 
 import pytest
 
-from requests_core.http_manager.base import Response
-from requests_core.http_manager.connectionpool import (
+from requests_core._http.base import Response
+from requests_core._http.connectionpool import (
     connection_from_url,
     HTTPConnectionPool,
     HTTPSConnectionPool,
 )
-from requests_core.http_manager._sync.connection import HTTP1Connection
-from requests_core.http_manager.response import HTTPResponse
-from requests_core.http_manager.util.timeout import Timeout
-from requests_core.http_manager.packages.six.moves.queue import Empty
-from requests_core.http_manager.packages.ssl_match_hostname import CertificateError
-from requests_core.http_manager.exceptions import (
+from requests_core._http._sync.connection import HTTP1Connection
+from requests_core._http.response import HTTPResponse
+from requests_core._http.util.timeout import Timeout
+from requests_core._http.packages.six.moves.queue import Empty
+from requests_core._http.packages.ssl_match_hostname import CertificateError
+from requests_core._http.exceptions import (
     ClosedPoolError,
     EmptyPoolError,
     LocationValueError,

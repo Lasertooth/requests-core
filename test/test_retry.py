@@ -1,9 +1,9 @@
 import pytest
 
-from requests_core.http_manager.response import HTTPResponse
-from requests_core.http_manager.packages.six.moves import xrange
-from requests_core.http_manager.util.retry import Retry, RequestHistory
-from requests_core.http_manager.exceptions import (
+from requests_core._http.response import HTTPResponse
+from requests_core._http.packages.six.moves import xrange
+from requests_core._http.util.retry import Retry, RequestHistory
+from requests_core._http.exceptions import (
     ConnectTimeoutError,
     MaxRetryError,
     ReadTimeoutError,

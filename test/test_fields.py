@@ -1,7 +1,7 @@
 import pytest
 
-from requests_core.http_manager.fields import guess_content_type, RequestField
-from requests_core.http_manager.packages.six import u
+from requests_core._http.fields import guess_content_type, RequestField
+from requests_core._http.packages.six import u
 from . import onlyPy2
 
 

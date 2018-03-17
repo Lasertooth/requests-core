@@ -2,11 +2,11 @@ import pickle
 
 import pytest
 
-from requests_core.http_manager.exceptions import (HTTPError, MaxRetryError, LocationParseError,
+from requests_core._http.exceptions import (HTTPError, MaxRetryError, LocationParseError,
                                 ClosedPoolError, EmptyPoolError,
                                 ReadTimeoutError, ConnectTimeoutError,
                                 HeaderParsingError)
-from requests_core.http_manager.connectionpool import HTTPConnectionPool
+from requests_core._http.connectionpool import HTTPConnectionPool
 
 
 class TestPickle(object):

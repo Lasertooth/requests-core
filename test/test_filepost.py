@@ -1,8 +1,8 @@
 import pytest
 
-from requests_core.http_manager.filepost import encode_multipart_formdata, iter_fields
-from requests_core.http_manager.fields import RequestField
-from requests_core.http_manager.packages.six import b, u
+from requests_core._http.filepost import encode_multipart_formdata, iter_fields
+from requests_core._http.fields import RequestField
+from requests_core._http.packages.six import b, u
 
 
 BOUNDARY = '!! test boundary !!'

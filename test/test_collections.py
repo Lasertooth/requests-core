@@ -1,11 +1,11 @@
-from requests_core.http_manager._collections import (
+from requests_core._http._collections import (
     HTTPHeaderDict,
     RecentlyUsedContainer as Container
 )
 import pytest
 
-from requests_core.http_manager.exceptions import InvalidHeader
-from requests_core.http_manager.packages import six
+from requests_core._http.exceptions import InvalidHeader
+from requests_core._http.packages import six
 xrange = six.moves.xrange
 
 

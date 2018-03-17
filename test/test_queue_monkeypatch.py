@@ -4,9 +4,9 @@ import mock
 
 import pytest
 
-from requests_core.http_manager import HTTPConnectionPool
-from requests_core.http_manager.exceptions import EmptyPoolError
-from requests_core.http_manager.packages.six.moves import queue
+from requests_core._http import HTTPConnectionPool
+from requests_core._http.exceptions import EmptyPoolError
+from requests_core._http.packages.six.moves import queue
 
 
 class BadError(Exception):
