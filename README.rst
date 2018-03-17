@@ -37,7 +37,7 @@ Async usage::
 Sync usage::
 
     >>> r = requests_core.blocking_request(method='GET', url=url, timeout=2)
-    >>> print()
+    >>> print(r)
     <requests_core.http_manager._async.response.HTTPResponse object at 0x103f63c88>
 
 
