@@ -19,7 +19,7 @@ import datetime
 import socket
 import warnings
 
-import h11
+from .. import h22
 
 from ..base import Request, Response
 from ..exceptions import (
@@ -45,7 +45,7 @@ except ImportError:
 # within two years of the current date, and no
 # earlier than 6 months ago.
 RECENT_DATE = datetime.date(2016, 1, 1)
-_SUPPORTED_VERSIONS = frozenset([b'1.0', b'1.1'])
+_SUPPORTED_VERSIONS = frozenset([b'1.0', b'1.1', b'2.0'])
 # A sentinel object returned when some syscalls return EAGAIN.
 _EAGAIN = object()
 
@@ -138,7 +138,7 @@ def _request_bytes_iterable(request, state_machine):
     """
     An iterable that serialises a set of bytes for the body.
     """
-    h11_request = h11.Request(
+    h11_request = h22.Request(
         method=request.method,
         target=request.target,
         headers=_stringify_headers(request.headers.items()),
@@ -146,9 +146,9 @@ def _request_bytes_iterable(request, state_machine):
     yield state_machine.send(h11_request)
 
     for chunk in _make_body_iterable(request.body):
-        yield state_machine.send(h11.Data(data=chunk))
+        yield state_machine.send(h22.Data(data=chunk))
 
-    yield state_machine.send(h11.EndOfMessage())
+    yield state_machine.send(h22.EndOfMessage())
 
 
 def _response_from_h11(h11_response, body_object):
@@ -195,8 +195,8 @@ def _start_http_request(request, state_machine, conn):
     """
     # Before we begin, confirm that the state machine is ok.
     if (
-        state_machine.our_state is not h11.IDLE or
-        state_machine.their_state is not h11.IDLE
+        state_machine.our_state not in h22.IDLE or
+        state_machine.their_state not in h22.IDLE
     ):
         raise ProtocolError("Invalid internal state transition")
 
@@ -217,21 +217,22 @@ def _start_http_request(request, state_machine, conn):
         state_machine.receive_data(data)
         while True:
             event = state_machine.next_event()
-            if event is h11.NEED_DATA:
+            if event is h22.NEED_DATA:
                 break
 
-            elif isinstance(event, h11.InformationalResponse):
+            elif isinstance(event, h22.InformationalResponse):
                 # Ignore 1xx responses
                 continue
 
-            elif isinstance(event, h11.Response):
+            elif isinstance(event, h22.Response):
                 # We have our response! Save it and get out of here.
                 context['h11_response'] = event
                 raise LoopAbort
 
             else:
                 # Can't happen
-                raise RuntimeError("Unexpected h11 event {}".format(event))
+                if event:
+                    raise RuntimeError("Unexpected h11 event {}".format(event))
 
     conn.send_and_receive_for_a_while(next_bytes_to_send, consume_bytes)
     assert context['h11_response'] is not None
@@ -257,7 +258,7 @@ def _read_until_event(state_machine, conn):
     """
     while True:
         event = state_machine.next_event()
-        if event is not h11.NEED_DATA:
+        if event is not h22.NEED_DATA:
             return event
 
         state_machine.receive_data(conn.receive_some())
@@ -308,7 +309,7 @@ class HTTP1Connection(object):
         self._tunnel_port = tunnel_port
         self._tunnel_headers = tunnel_headers
         self._sock = None
-        self._state_machine = h11.Connection(our_role=h11.CLIENT)
+        self._state_machine = h22.Connection()
 
     def _wrap_socket(
         self, conn, ssl_context, fingerprint, assert_hostname
@@ -378,11 +379,11 @@ class HTTP1Connection(object):
         This method establishes a CONNECT tunnel shortly after connection.
         """
         # Basic sanity check that _tunnel is only called at appropriate times.
-        assert self._state_machine.our_state is h11.IDLE
+        assert self._state_machine.our_state is h22.IDLE
         tunnel_request = _build_tunnel_request(
             self._tunnel_host, self._tunnel_port, self._tunnel_headers
         )
-        tunnel_state_machine = h11.Connection(our_role=h11.CLIENT)
+        tunnel_state_machine = h22.Connection(our_role=h22.CLIENT)
         h11_response = _start_http_request(
             tunnel_request, tunnel_state_machine, conn
         )
@@ -484,7 +485,7 @@ class HTTP1Connection(object):
         """
         try:
             self._state_machine.start_next_cycle()
-        except h11.LocalProtocolError:
+        except h22.LocalProtocolError:
             # Not re-usable
             self.close()
         else:
@@ -501,7 +502,7 @@ class HTTP1Connection(object):
         """
         our_state = self._state_machine.our_state
         their_state = self._state_machine.their_state
-        return (our_state is h11.IDLE and their_state is h11.IDLE)
+        return (our_state is h22.IDLE and their_state is h22.IDLE)
 
     def __iter__(self):
         return self
@@ -514,10 +515,10 @@ class HTTP1Connection(object):
         Iterate over the body bytes of the response until end of message.
         """
         event = _read_until_event(self._state_machine, self._sock)
-        if isinstance(event, h11.Data):
+        if isinstance(event, h22.Data):
             return bytes(event.data)
 
-        elif isinstance(event, h11.EndOfMessage):
+        elif isinstance(event, h22.EndOfMessage):
             self._reset()
             raise StopIteration
 

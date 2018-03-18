@@ -19,7 +19,7 @@ import datetime
 import socket
 import warnings
 
-import h11
+from .. import h22
 
 from ..base import Request, Response
 from ..exceptions import (
@@ -45,7 +45,7 @@ except ImportError:
 # within two years of the current date, and no
 # earlier than 6 months ago.
 RECENT_DATE = datetime.date(2016, 1, 1)
-_SUPPORTED_VERSIONS = frozenset([b'1.0', b'1.1'])
+_SUPPORTED_VERSIONS = frozenset([b'1.0', b'1.1', b'2.0'])
 # A sentinel object returned when some syscalls return EAGAIN.
 _EAGAIN = object()
 
@@ -138,17 +138,23 @@ def _request_bytes_iterable(request, state_machine):
     """
     An iterable that serialises a set of bytes for the body.
     """
-    h11_request = h11.Request(
+    h11_request = h22.Request(
         method=request.method,
         target=request.target,
         headers=_stringify_headers(request.headers.items()),
     )
-    yield state_machine.send(h11_request)
+    r = state_machine.send(h11_request)
+    if r:
+        yield r
 
     for chunk in _make_body_iterable(request.body):
-        yield state_machine.send(h11.Data(data=chunk))
+        r = state_machine.send(h22.Data(data=chunk))
+        if r:
+            yield r
 
-    yield state_machine.send(h11.EndOfMessage())
+    r = state_machine.send(h22.EndOfMessage())
+    if r:
+        yield r
 
 
 def _response_from_h11(h11_response, body_object):
@@ -162,6 +168,21 @@ def _response_from_h11(h11_response, body_object):
     our_response = Response(
         status_code=h11_response.status_code,
         headers=_headers_to_native_string(h11_response.headers),
+        body=body_object,
+        version=version,
+    )
+    return our_response
+
+def _response_from_h2(h2_response, body_object):
+    """
+    Given a h11 Response object, build a urllib3 response object and return it.
+    """
+    # if h2_response.http_version not in _SUPPORTED_VERSIONS:
+    #     raise BadVersionError(h11_response.http_version)
+    version = b'HTTP/2.0'
+    our_response = Response(
+        status_code=int(h2_response.headers[0][1]),
+        headers=_headers_to_native_string(h2_response.headers),
         body=body_object,
         version=version,
     )
@@ -195,8 +216,8 @@ async def _start_http_request(request, state_machine, conn):
     """
     # Before we begin, confirm that the state machine is ok.
     if (
-        state_machine.our_state is not h11.IDLE or
-        state_machine.their_state is not h11.IDLE
+        state_machine.our_state not in h22.IDLE or
+        state_machine.their_state not in h22.IDLE
     ):
         raise ProtocolError("Invalid internal state transition")
 
@@ -206,7 +227,8 @@ async def _start_http_request(request, state_machine, conn):
 
     async def next_bytes_to_send():
         try:
-            return next(request_bytes_iterable)
+            n = next(request_bytes_iterable)
+            return n
 
         except StopIteration:
             # We successfully sent the whole body!
@@ -214,27 +236,46 @@ async def _start_http_request(request, state_machine, conn):
             return None
 
     def consume_bytes(data):
-        state_machine.receive_data(data)
-        while True:
-            event = state_machine.next_event()
-            if event is h11.NEED_DATA:
+        # events = state_machine.next_event()
+        events = state_machine.receive_data(data)
+        for event in events:
+
+            if event in h22.NEED_DATA:
                 break
 
-            elif isinstance(event, h11.InformationalResponse):
+            if event is None:
+                break
+
+            elif isinstance(event, h22.h2.events.RemoteSettingsChanged):
+                break
+
+            elif isinstance(event, h22.h2.events.SettingsAcknowledged):
+                state_machine.send(state_machine.h2_connection.data_to_send(), raw=True)
+
+            elif isinstance(event, h22.h2.events.WindowUpdated):
+                state_machine.send(state_machine.h2_connection.data_to_send(), raw=True)
+
+            elif isinstance(event, h22.InformationalResponse):
                 # Ignore 1xx responses
                 continue
 
-            elif isinstance(event, h11.Response):
+            elif isinstance(event, h22.H1Response):
                 # We have our response! Save it and get out of here.
                 context['h11_response'] = event
+                raise LoopAbort
+
+            elif isinstance(event, h22.H2Response):
+                context['h2_response'] = event
                 raise LoopAbort
 
             else:
                 # Can't happen
                 raise RuntimeError("Unexpected h11 event {}".format(event))
+        if not events:
+            context['h11_response'] = data
 
     await conn.send_and_receive_for_a_while(next_bytes_to_send, consume_bytes)
-    assert context['h11_response'] is not None
+    assert context['h11_response'] is not None or context['h2_response'] is not None
     if context['send_aborted']:
         # Our state machine thinks we sent a bunch of data... but maybe we
         # didn't! Maybe our send got cancelled while we were only half-way
@@ -246,7 +287,7 @@ async def _start_http_request(request, state_machine, conn):
         # state_machine.poison()
         # XX kluge for now
         state_machine._cstate.process_error(state_machine.our_role)
-    return context['h11_response']
+    return context['h11_response'] or context['h2_response']
 
 
 async def _read_until_event(state_machine, conn):
@@ -257,16 +298,75 @@ async def _read_until_event(state_machine, conn):
     """
     while True:
         event = state_machine.next_event()
-        if event is not h11.NEED_DATA:
+        if event is not h22.NEED_DATA:
             return event
 
         state_machine.receive_data(await conn.receive_some())
 
 
+def get_http2_ssl_context():
+    """
+    This function creates an SSLContext object that is suitably configured for
+    HTTP/2. If you're working with Python TLS directly, you'll want to do the
+    exact same setup as this function does.
+    """
+    # Get the basic context from the standard library.
+    ctx = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
+
+    # RFC 7540 Section 9.2: Implementations of HTTP/2 MUST use TLS version 1.2
+    # or higher. Disable TLS 1.1 and lower.
+    ctx.options |= (
+        ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+    )
+
+    # RFC 7540 Section 9.2.1: A deployment of HTTP/2 over TLS 1.2 MUST disable
+    # compression.
+    ctx.options |= ssl.OP_NO_COMPRESSION
+
+    # RFC 7540 Section 9.2.2: "deployments of HTTP/2 that use TLS 1.2 MUST
+    # support TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256". In practice, the
+    # blacklist defined in this section allows only the AES GCM and ChaCha20
+    # cipher suites with ephemeral key negotiation.
+    ctx.set_ciphers("ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20")
+
+    # We want to negotiate using NPN and ALPN. ALPN is mandatory, but NPN may
+    # be absent, so allow that. This setup allows for negotiation of HTTP/1.1.
+    ctx.set_alpn_protocols(["h2", "http/1.1"])
+
+    try:
+        ctx.set_npn_protocols(["h2", "http/1.1"])
+    except NotImplementedError:
+        pass
+
+    return ctx
+
+
+def negotiate_tls(tcp_conn, context):
+    """
+    Given an established TCP connection and a HTTP/2-appropriate TLS context,
+    this function:
+
+    1. wraps TLS around the TCP connection.
+    2. confirms that HTTP/2 was negotiated and, if it was not, throws an error.
+    """
+    tls_conn = context.wrap_socket(tcp_conn, server_side=True)
+
+    # Always prefer the result from ALPN to that from NPN.
+    # You can only check what protocol was negotiated once the handshake is
+    # complete.
+    negotiated_protocol = tls_conn.selected_alpn_protocol()
+    if negotiated_protocol is None:
+        negotiated_protocol = tls_conn.selected_npn_protocol()
+
+    if negotiated_protocol != "h2":
+        raise RuntimeError("Didn't negotiate HTTP/2!")
+
+    return tls_conn
+
 _DEFAULT_SOCKET_OPTIONS = object()
 
 
-class HTTP1Connection(object):
+class HTTPConnection(object):
     """
     A wrapper around a single HTTP/1.1 connection.
 
@@ -308,7 +408,7 @@ class HTTP1Connection(object):
         self._tunnel_port = tunnel_port
         self._tunnel_headers = tunnel_headers
         self._sock = None
-        self._state_machine = h11.Connection(our_role=h11.CLIENT)
+        self._state_machine = h22.Connection()
 
     async def _wrap_socket(
         self, conn, ssl_context, fingerprint, assert_hostname
@@ -362,27 +462,36 @@ class HTTP1Connection(object):
             ssl_context.verify_mode == ssl.CERT_REQUIRED and
             (assert_hostname is not False or fingerprint)
         )
+        self._state_machine.sock = conn
         return conn
 
     async def send_request(self, request, read_timeout):
         """
         Given a Request object, performs the logic required to get a response.
         """
-        h11_response = await _start_http_request(
+        h_response = await _start_http_request(
             request, self._state_machine, self._sock
         )
-        return _response_from_h11(h11_response, self)
+
+        if isinstance(h_response, h22.H2Response):
+            return _response_from_h2(h_response, self)
+        else:
+            return _response_from_h11(h_response, self)
 
     async def _tunnel(self, conn):
         """
         This method establishes a CONNECT tunnel shortly after connection.
         """
         # Basic sanity check that _tunnel is only called at appropriate times.
-        assert self._state_machine.our_state is h11.IDLE
+        assert self._state_machine.our_state in h22.IDLE
+        # Upgrade to h2.
+
+        conn = negotiate_tls(conn, get_http2_ssl_context())
+
         tunnel_request = _build_tunnel_request(
             self._tunnel_host, self._tunnel_port, self._tunnel_headers
         )
-        tunnel_state_machine = h11.Connection(our_role=h11.CLIENT)
+        tunnel_state_machine = h22.Connection(our_role=h22.CLIENT)
         h11_response = await _start_http_request(
             tunnel_request, tunnel_state_machine, conn
         )
@@ -440,6 +549,9 @@ class HTTP1Connection(object):
                 self, "Failed to establish a new connection: %s" % e
             )
 
+        # Use h2.
+        ssl_context = get_http2_ssl_context()
+
         if ssl_context is not None:
             if self._tunnel_host is not None:
                 self._tunnel(conn)
@@ -484,7 +596,7 @@ class HTTP1Connection(object):
         """
         try:
             self._state_machine.start_next_cycle()
-        except h11.LocalProtocolError:
+        except h22.LocalProtocolError:
             # Not re-usable
             self.close()
         else:
@@ -501,7 +613,7 @@ class HTTP1Connection(object):
         """
         our_state = self._state_machine.our_state
         their_state = self._state_machine.their_state
-        return (our_state is h11.IDLE and their_state is h11.IDLE)
+        return (our_state is h22.IDLE and their_state is h22.IDLE)
 
     def __aiter__(self):
         return self
@@ -514,13 +626,16 @@ class HTTP1Connection(object):
         Iterate over the body bytes of the response until end of message.
         """
         event = await _read_until_event(self._state_machine, self._sock)
-        if isinstance(event, h11.Data):
+        if isinstance(event, h22.Data):
             return bytes(event.data)
 
-        elif isinstance(event, h11.EndOfMessage):
+        elif isinstance(event, h22.EndOfMessage):
             self._reset()
             raise StopAsyncIteration
 
         else:
             # can't happen
-            raise RuntimeError("Unexpected h11 event {}".format(event))
+            # raise RuntimeError("Unexpected h11 event {}".format(event))
+            raise StopAsyncIteration
+
+HTTP1Connection = HTTPConnection

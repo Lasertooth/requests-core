@@ -18,6 +18,7 @@ from .util.request import make_headers
 from .util.url import get_host
 from .util.timeout import Timeout
 from .util.retry import Retry
+from . import h22
 
 
 # Set default logging handler to avoid "No handler found" warnings.
