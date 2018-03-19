@@ -177,14 +177,11 @@ def _response_from_h2(h2_response, body_object):
     """
     Given a h11 Response object, build a urllib3 response object and return it.
     """
-    # if h2_response.http_version not in _SUPPORTED_VERSIONS:
-    #     raise BadVersionError(h11_response.http_version)
-    version = b'HTTP/2.0'
     our_response = Response(
         status_code=int(h2_response.headers[0][1]),
         headers=_headers_to_native_string(h2_response.headers),
         body=body_object,
-        version=version,
+        version=b'HTTP/2.0',
     )
     return our_response
 
@@ -200,7 +197,6 @@ def _build_tunnel_request(host, port, headers):
     tunnel_request = Request(method=b"CONNECT", target=target, headers=headers)
     tunnel_request.add_host(host=host, port=port, scheme='http')
     return tunnel_request
-
 
 async def _start_http_request(request, state_machine, conn):
     """
@@ -223,7 +219,7 @@ async def _start_http_request(request, state_machine, conn):
 
     request_bytes_iterable = _request_bytes_iterable(request, state_machine)
     # Hack around Python 2 lack of nonlocal
-    context = {'send_aborted': True, 'h11_response': None}
+    context = {'send_aborted': True, 'h11_response': None, 'h2_response': None}
 
     async def next_bytes_to_send():
         try:
@@ -236,28 +232,55 @@ async def _start_http_request(request, state_machine, conn):
             return None
 
     def consume_bytes(data):
-        # events = state_machine.next_event()
-        events = state_machine.receive_data(data)
-        for event in events:
+
+        state_machine.record_data(data)
+
+        while True:
+            event = state_machine.next_event()
+            print(event)
 
             if event in h22.NEED_DATA:
                 break
 
-            if event is None:
-                break
+            # if event is None:
+                # break
 
             elif isinstance(event, h22.h2.events.RemoteSettingsChanged):
-                break
+                # state_machine.record_data(data)
+                state_machine.update()
+                continue
+
+            elif isinstance(event, h22.h2.events.StreamReset):
+                state_machine.update()
+                raise LoopAbort
+
+            elif isinstance(event, h22.h2.events.DataReceived):
+                state_machine.update()
+                # state_machine.save_events(events[i:])
+
+            elif isinstance(event, h22.h2.events.StreamEnded):
+                state_machine.update()
+                # raise LoopAbort
 
             elif isinstance(event, h22.h2.events.SettingsAcknowledged):
-                state_machine.send(state_machine.h2_connection.data_to_send(), raw=True)
+                state_machine.update()
 
             elif isinstance(event, h22.h2.events.WindowUpdated):
-                state_machine.send(state_machine.h2_connection.data_to_send(), raw=True)
+                state_machine.update()
 
             elif isinstance(event, h22.InformationalResponse):
                 # Ignore 1xx responses
                 continue
+
+            elif isinstance(event, h22.h2.connection.ConnectionTerminated):
+                raise LoopAbort
+
+            elif isinstance(event, h22.EndOfMessage):
+                raise LoopAbort
+                # state_machine.update()
+                # import time
+                # time.sleep(1)
+                # continue
 
             elif isinstance(event, h22.H1Response):
                 # We have our response! Save it and get out of here.
@@ -271,8 +294,8 @@ async def _start_http_request(request, state_machine, conn):
             else:
                 # Can't happen
                 raise RuntimeError("Unexpected h11 event {}".format(event))
-        if not events:
-            context['h11_response'] = data
+        # if not events:
+            # context['h11_response'] = data
 
     await conn.send_and_receive_for_a_while(next_bytes_to_send, consume_bytes)
     assert context['h11_response'] is not None or context['h2_response'] is not None
@@ -297,12 +320,15 @@ async def _read_until_event(state_machine, conn):
     other than h11.NEED_DATA, this function returns that event.
     """
     while True:
+        # state_machine.receive_data(await conn.receive_some())
+
         event = state_machine.next_event()
-        if event is not h22.NEED_DATA:
+        print(event)
+
+        if event not in h22.NEED_DATA:
             return event
 
         state_machine.receive_data(await conn.receive_some())
-
 
 def get_http2_ssl_context():
     """
@@ -409,6 +435,7 @@ class HTTPConnection(object):
         self._tunnel_headers = tunnel_headers
         self._sock = None
         self._state_machine = h22.Connection()
+        self._events = []
 
     async def _wrap_socket(
         self, conn, ssl_context, fingerprint, assert_hostname
@@ -477,6 +504,7 @@ class HTTPConnection(object):
             return _response_from_h2(h_response, self)
         else:
             return _response_from_h11(h_response, self)
+
 
     async def _tunnel(self, conn):
         """
@@ -613,7 +641,7 @@ class HTTPConnection(object):
         """
         our_state = self._state_machine.our_state
         their_state = self._state_machine.their_state
-        return (our_state is h22.IDLE and their_state is h22.IDLE)
+        return (our_state in h22.IDLE and their_state in h22.IDLE)
 
     def __aiter__(self):
         return self
@@ -625,9 +653,14 @@ class HTTPConnection(object):
         """
         Iterate over the body bytes of the response until end of message.
         """
+
         event = await _read_until_event(self._state_machine, self._sock)
+        print('fuck', event)
         if isinstance(event, h22.Data):
             return bytes(event.data)
+
+        if isinstance(event, h22.h2.events.DataReceived):
+            return event
 
         elif isinstance(event, h22.EndOfMessage):
             self._reset()

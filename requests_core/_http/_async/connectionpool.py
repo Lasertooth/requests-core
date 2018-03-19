@@ -709,7 +709,6 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
                 body_pos=body_pos,
                 **response_kw
             )
-
         return response
 
 

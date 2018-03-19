@@ -49,9 +49,9 @@ class CompileCommand(Command):
         self.status('Compiling sync code…')
         os.system(f'{sys.executable} {__file__} build')
         self.status('Moving things around…')
-        os.system('rm -fr requests_core/http_manager/_sync')
+        os.system('rm -fr requests_core/_http/_sync')
         os.system(
-            'mv build/lib/requests_core/http_manager/_sync/ requests_core/http_manager/'
+            'mv build/lib/requests_core/_http/_sync/ requests_core/_http/'
         )
         try:
             self.status('Cleaning up…')
